@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration>
+
+    <CustomLevels>
+        <!-- levels always visible if not OFF-Level is set (FATAL==100) -->
+        <CustomLevel name="ALWAYS" intLevel="10"/>
+    </CustomLevels>
+
+    <Appenders>
+        <Console name="thrifty-filter">
+            <PatternLayout pattern="%-5level - %msg%n"/>
+            <Filters>
+                <ThresholdFilter level="ERROR" onMatch="DENY" onMismatch="NEUTRAL" />
+                <ThresholdFilter level="TRACE"/>
+            </Filters>
+        </Console>
+
+        <Console name="chatty-filter">
+            <PatternLayout pattern="%d{mm:ss.SSS} (%t) %-5level %logger{1.} - %msg%n"/>
+            <Filters>
+                <ThresholdFilter level="ALWAYS" onMatch="DENY" onMismatch="NEUTRAL" />
+                <ThresholdFilter level="ERROR"/>
+            </Filters>
+        </Console>
+
+        <Console name="message-filter">
+            <PatternLayout pattern="%msg%n"/>
+            <Filters>
+                <ThresholdFilter level="ALWAYS" />
+            </Filters>
+        </Console>
+
+    </Appenders>
+
+    <Loggers>
+
+        <Logger name="com.sforce.cc.tools" level="info" additivity="false">
+            <AppenderRef ref="message-filter"/>
+            <AppenderRef ref="thrifty-filter"/>
+            <AppenderRef ref="chatty-filter"/>
+        </Logger>
+
+    </Loggers>
+
+</Configuration>

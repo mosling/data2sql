@@ -1,0 +1,20 @@
+options:
+  fkEndings:
+    - "dc=demandware,dc=com"
+  ignoredAttributes:
+    - objectclass
+    - uniqueMember
+  shortErrorMsg: true
+  dataOnly: true
+  quotes:
+    - ["\"", "\\\""]
+dbMapping:
+  ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com:
+    table: organization
+    optionalAttribs: [sfAccountId]
+    attribs:
+      - [cn, organization_cn, "'$$'"]
+      - [o, organization_name, "'$$'"]
+      - [sfAccountId, sfaccount, "'$$'", "''"]
+
+

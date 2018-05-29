@@ -1,0 +1,20 @@
+options:
+  fkEndings:
+    - "dc=demandware,dc=com"
+  ignoredAttributes:
+    - objectclass
+    - uniqueMember
+  shortErrorMsg: true
+  dataOnly: true
+  quotes:
+    - ["\"", "\\\""]
+dbMapping:
+  ou=people,ou=identity,dc=demandware,dc=com:
+    table: people
+    attribs:
+      - [cn, id, "\"$$\""]
+      - [mail, email, "\"$$\""]
+      - [displayName, displayname, "\"$$\""]
+      - [givenName, givenname, "\"$$\""]
+      - [sn, surename, "\"$$\""]
+      - [userState, status, "\"$$\""]

@@ -1,0 +1,385 @@
+= Convert LDIF Data to SQL or Text
+
+== Command line
+
+To start transformation the application has some parameters.
+
+ldif-file::
+The filename of the ldif file.
+
+mapping::
+This can be a resource embedded in the jar file or a filename, using this search order, first resource
+and if not found search for file.
+
+output-file::
+The name of the output file
+
+[nodrop]::
+is this option is used to deactivate all **drop** statements from the poststep part,
+this is useful if you want to review the temporary data
+
+[analyze]::
+with this option the applications displays some information generated from the ldif data
+
+----
+java -jar ldif-converter.jar idsvc.ldif /mapping-v2.yaml prod.sql nodrop
+----
+
+== LDIF partitioning
+
+The ldif file contains a number of blocks (ldap-tree-leafs) separated by one or more empty lines.
+
+Every ldif block consists of a number of `attributes`, during the process every `attribute`
+is splitted into an attribute name (`attrName`) and its data (`attrData`) which are separated by a colon.
+Depending at the open structure of ldap every attrName for a block can have a list of `attrData`, but often this
+list has one entry only.
+
+=== table name attribute
+This special attribute (i.e. **dn:** but configurable using the `tableNameAttribute` option) is something like
+the primary key of an ldap tree. It describes the path from the leaf
+to the root node. The data of this attribute To handle this information we split the dn value at the first comma.
+
+----
+dn: uid=qa.1455190856@demandware.com,ou=people,ou=identity,dc=demandware,dc=com
+
+ldif-table := ou=people,ou=identity,dc=demandware,dc=com
+ldif_pk := qa.1455190856@demandware.com
+----
+
+=== data attributes
+In this the case the entry is a simple string which is used as data.
+
+----
+migratedWith: com.demandware.am.common.util.DocAccessOrgMaintainer
+
+attrName = migratedWith
+attrData = com.demandware.am.common.util.DocAccessOrgMaintainer
+----
+
+=== multiple optional indexed data attributes
+In LDIF it is allowed to have every attribute name multiple times in one **dn** block, sometimes this entries are
+indexed, this also true for meta attribute data.
+
+----
+passwordBacklog: [0]={PBKDF2}100000:zBPSs960avpYF35GiH9tgV93qs47k17/E/gzUg==
+passwordBacklog: [1]={PBKDF2}100000:aNL6G0GcOGkszdWd07hx+CPVC+pf1ZIDDcfNoA==
+passwordBacklog: [2]={PBKDF2}100000:pOZ5tmluAVZPYgkBXQC796OTJIFhHhBlIwo0yQ==
+
+attrName = passwordBacklog
+attrData = ( [0]={PBKDF2}100000:zBPSs960avpYF35GiH9tgV93qs47k17/E/gzUg==,
+             [1]={PBKDF2}100000:aNL6G0GcOGkszdWd07hx+CPVC+pf1ZIDDcfNoA==,
+             [2]={PBKDF2}100000:pOZ5tmluAVZPYgkBXQC796OTJIFhHhBlIwo0yQ==
+           )
+attrIndex = (0, 1, 2)
+----
+
+The index itself isn't stored separately but can be used during replacement with the template string '##'.
+
+=== reference attributes
+This is something like an foreign key and is handled by a special ldap plugin (i.e. uniqueMember).
+An **uniqueMember** entry is used to define a reference by naming the distinguish name of the referenced
+leaf which has relationship to this entry.
+Every entry can have multiple **uniqueMember** entries. For only one entry reference a **ldif-table** we
+can construct a 1:n relationship, in the case of multiple reference we have an m:n relationship.
+At the referenced entry can be exists an optional dynamic generated attribute **memberOf**.
+
+----
+uniqueMember: cn=aapt_s01,ou=tenants,ou=identity,dc=demandware,dc=com
+
+attrName = uniqueMember-ou=tenants,ou=identity,dc=demandware,dc=com
+attrData = aapt_s01
+----
+
+During configuration every reference entry has a boolean value which defines if the entry is a real
+foreign key (i.e. true and the generated `attrName` has the same syntax as in the example above ). If
+this value is set to false all entries are handled independently from his ldap-node, this can be useful
+if there are different ldap reference but we need the data only.
+
+----
+uniqueMember: cn=aapt_s01,ou=tenants,ou=identity,dc=demandware,dc=com
+
+attrName = uniqueMember
+attrData = aapt_s01
+----
+
+=== meta attribute (i.e. sunKeyValue)
+This is a very special entry which contains an (`attrName`,`attrData`) pair as `attrData`,
+where the containing `attrName` can be indexed.
+
+----
+sunKeyValue:<key>=<value>
+
+attrName = sunKeyValue-<key>
+attrData = <value>
+----
+
+After analyzing the ldif block the resulting structure is a list of `attrNames` each with a list of `attrData`
+for this ldif attribute.
+
+== Mapping Options
+
+=== fkEndings
+This contains a list of attrData endings to identify a foreign key, in this case only the first part is the data
+
+----
+entry: cn=CC,ou=serviceTypes,ou=identity,dc=demandware,dc=com
+data  := CC
+table := ou=serviceTypes,ou=identity,dc=demandware,dc=com
+----
+
+This is information is used during analyzing the data and to extract the target data from such attributes.
+
+=== ignoreNodes
+During parsing all entries with an `tableNameAttribute` which ends of one string from list are ignored, this is
+helpful during test phase to save time and space.
+
+=== ignoredAttributes
+This is a list of `attrNames` which are ignored during parsing process, normally this is used for generated back
+references or columns which can't used at the moment.
+
+=== referenceAttributes
+A map of `attrNames`, boolean` which are interpreted as references ([see](#reference-attributes))
+
+----
+referenceAttributes:
+    uniqueMember: true
+    creatorsName: false
+----
+
+=== metaAttributes
+A list of `attrNames` which are interpreted as meta attributes ([see](#meta-attribute-(i.e.-sunkeyvalue)))
+
+=== errorCountOnlyFor
+If the process has finished there can be a number of missing mandatory attributes, the default behavior is to show
+all these entries, if the error line contains one of the strings in this list the line isn't shown but at the end
+of this error category the number of failures of this type is shown, this works perfect with
+`friendlyNames` together, but please aware that these entries are used for every failure line, in the example two
+dashes are added, this is the separator for `friendlyNames`.
+
+=== shortError
+If true only the `tableNameAttribute` entry is logged only, if false all current block entries are logged.
+
+=== dataOnly
+This is used for generating arbitrary output, if true the `values` section from the transformation is the only output
+. In other case the application generates valid SQL insert and update statements.
+
+=== quoteOutput
+A list of pairs, every pair is used during output to call the java replace function which replaces the first string
+with the second, please be carefully if you using more than one entry, this entries are executed in the given
+order and can be overwrite earlier transitions. The quoting is done before the replacement of the template
+transformation (i.e. the added single quote for sql strings are not replaced).
+
+=== configuration example
+
+----
+options:
+  quotes:
+      - ["'", "''"]
+  ignoredNodes:
+    - "ou=auditlog,ou=identity,dc=demandware,dc=com"
+  tableNameAttribute: dn
+  ignoredAttributes:
+    - objectclass
+    - memberOf
+  referenceAttributes:
+    - uniqueMember
+  metaAttributes:
+    - sunKeyValue
+  fkEndings:
+    - "dc=demandware,dc=com"
+  errorCountOnlyFor:
+    - "-- DELETED"
+    - "-- LOCKED"
+    - "-- organizationType"
+  shortErrorMsg: true
+----
+
+== Mapping Description
+
+=== beforeAll
+A list of string which are written to the output stream before all generates output.
+The order of all this statements is 0.
+
+=== afterAll
+A list of string which are written to the output stream after all generates output.
+The order of all this statements is **Integer.MAX_VALUE**.
+
+=== dbMapping
+The mapping itself. This contains a number entries each describe the transformation of a **ldif-table**.
+
+==== table
+The name of the target SQL table.
+
+==== attribs
+A list of lists each with three entries
+
+* the attrName from the ldif file or '_' if it is a constant value
+* the column name(s) for the data in the third entry or `_update_` to generate an update statement
+* the template to output something (with **dataOnly** false insert or update-where statementa are created), the
+    template is a simple string with two placeholders
+** '$$' for the attrData
+** '##' for the optional index of the data (i.e. the prefix [<index>]=...)
+
+==== optionalAttribs
+A list of optional attributes, if such an attribute is missing the statement is created without this, all other
+attributes named in **attribs** are mandatory.
+
+==== fullDataAttribs
+List of attributeNames which are not modified during output expect  the replacement of '$$'.
+
+==== splitData
+If the data itself contains a number of target data, this data can be splitted by using the java split() method.
+This results in number of entries for this attribute.
+
+----
+    splitData:
+        <attribute-A>: '#'
+
+    data = 12#34#56#67
+    target-data = [12,34,56,67]
+----
+
+====
+This property is available for base definitions only, not for successor definitions.
+====
+
+==== order (number)
+Control the order of sql statemant generation. At default all statement have order 1 and the generated sql
+statements have **no** defined order. If you need such an order this atribute must be set for each mapping. There
+is one internal rule only used for successors mappings with the default order value 1. In this case the successor
+mapping becomes the order of the parent mapping plus the index, staring at 1, of the successor array.
+
+==== successors
+Often we have the case that one ldif block should generate differend outputs. This is a list of string which
+references the block **string-&lt;ldif-table&gt;** in dbMapping. For each successor the the order is incremented by
+one.
+
+Each successor can have a preceding attrName separated by **'?'**, this is an optional successor which is called
+ only if the attrName exists.
+
+----
+ou=people,ou=identity,dc=organization,dc=com:
+  table: people
+  successors: [parent, "childname?child]
+  ...
+child-ou=people,ou=identity,dc=organization,dc=com:
+  table: people_child
+  attribs:
+    - [childname, name_of_child, "''$$"]
+      ...
+----
+
+==== friendlyNames
+This is used as additional entryName for some log messages, it's a list of existing
+attributes for the current entry, if no attribute exists, the name is printed, all names are separeted by " -- ".
+
+==== mapping example
+----
+ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com:
+  table: organization
+  order: 20
+  successors: [people, realm]
+  optionalAttribs: [createTimestamp]
+  attribs:
+    - [cn, organization_cn, "'$$'"]
+    - [o, organization_name, "'$$'"]
+    - [createTimestamp, created, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+people-ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com:
+  table: temp_people_access
+  friendlyNames: [o]
+  attribs:
+    - [ cn, fk_organization, "(select id from organization where organization_cn = '$$')"]
+    - [ "uniqueMember-ou=people,ou=identity,dc=demandware,dc=com", fk_people, "(select id from people where people_cn = '$$')"]
+realm-ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com:
+  table: realm
+  friendlyNames: [o]
+  attribs:
+    - [ cn, fk_organization, "(select id from organization where organization_cn = '$$')"]
+    - [ "uniqueMember-ou=realms,ou=identity,dc=demandware,dc=com", realm_cn, "'$$'"]
+----
+
+As you can see the extraction of uniqueMember is sometimes a little bit confusing. For **people** we use a temporary
+table to add information and use the **afterAll** commands to add the information at the rigth table.
+
+Otherwise to update the **fk_realm** entry for table **instance** we can create an update statement to do this.
+This creates a normal update command and it is the attention of the user to update exactly the needed rows.
+
+Be careful with the order usage, the update statement must follow the insert statement.
+
+The mapping process create update statements automatically if at minimum one of the attributes column names has the value
+ **_update_** and the missing column name for the update command is added to the data field. If there are multiple
+ entries they will be combined using **AND**.
+
+----
+instance-ou=realms,ou=identity,dc=demandware,dc=com:
+  table: instance
+  attribs:
+    - [cn, fk_realm, "(select id from realm where realm_cn='$$')"]
+    - ["uniqueMember-ou=tenants,ou=identity,dc=demandware,dc=com", _update_, "instance_cn='$$'"]
+
+SQL:
+  UPDATE instance SET fk_realm=(select id from realm where realm_cn='aafx') where instance_cn='aafx_dev'
+----
+
+== Transformation Overview
+
+The transformation process has some input values:
+* **ldif-table**
+* **ldif-pk** for update statements
+* the **ldif-data** = Map&lt;String, List&lt;String&gt;&gt; structure from the ldif block
+* the mapping entry from the the mapping description
+
+Short process overview:
+
+1. check that we have a mapping described for the given **ldif-table**
+2. check that all mandatory attribute from the mapping exists in **ldif-data**
+3. check the every **ldif-data** with size greater 1 have the same size=**n**, this simple generate **n** statements
+    * if there are different numbers the greatest is used as **n** and later if the index greater as the existing data
+      the first entry is used
+    * we will not support a rollover mechanism, this matches not the reality and confuses everyone
+4. **ldif-data** has no data for mandatory fields, return empty list
+5. generate max(1,**n**) dml statements
+
+= PostgreSQL Hints
+
+== Import the generated data
+If you start with a database with empty tables, the following psql command executes the generated statements.
+
+----
+psql -U <db.user> -d <database-name> -f <output-file>
+----
+
+== Set Foreign Key
+Often the foreign key is set by selecting it from the referenced table using an alternate key. In such case an
+aggregate function must be used, because SQL can't handle possible result sets for a column entry.
+----
+[userState, fk_state, "(select max(id) from state where shortname = '$$')"]
+----
+But some databases allow this without aggregate function. It's recommended to use this, because the database can identify
+some wrong alternate keys.
+
+== Generate multiple columns from the same date
+It isn't possible to use the same attribute multiple times in the attribs section, but ldif-converter works with
+strings and you can add multiple columns in one attrib entry.
+----
+[argument, "argument_index,argument", "##,'$$'))"]
+----
+
+== Date Support
+Postgres offers a number of timestamp functions.
+----
+[createTimestamp, created, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+----
+
+== XML Support
+As startup we import the saml xml documents into Postgresql xml columns. To access the xml data we use xpath and
+must add the namesspaces manually:
+[source,sql]
+----
+select xpath('//ds:X509Data/ds:X509Certificate/text()', metadata,
+       ARRAY[
+         ARRAY['md', 'urn:oasis:names:tc:SAML:2.0:metadata'],
+         ARRAY['ds', 'http://www.w3.org/2000/09/xmldsig#']
+       ]) from service_provider;
+----
+

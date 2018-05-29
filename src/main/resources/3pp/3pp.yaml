@@ -1,0 +1,59 @@
+comment: |
+  Convert the Salesforce 3PP Software list into a database
+
+options:
+  quoteOutputData:
+    - ["'", "''"]
+  shortErrorMsg: true
+  csv:
+    separator: ","
+
+dbMapping:
+  3pp:
+    table: software
+    successors: ["License URL?license"]
+    optionalAttribs: ["License Type", "License URL", "Request Type", "Vendor", "Version"]
+    attribs:
+      - ["Third Party Software: Third Party Property Name", shortname, "'$$'"]
+      - ["Version", version, "'$$'"]
+      - ["Vendor", vendor, "'$$'"]
+      - ["Third Party Software: Created Date", created, "to_timestamp('$$','MM/DD/YYYY')"]
+      - ["Request Type", request_type, "'$$'"]
+      - ["Scrum Team (Owner): Team Name", team_name, "'$$'"]
+      - ["Third Party Software: Owner Name", owner_name, "'$$'"]
+      - ["License URL", fk_license, "(select lookup_id('license', 'lic_url', '$$'))"]
+  license-3pp:
+    table: license
+    successors: [software]
+    friendlyNames: ["Third Party Software: Third Party Property Name", Version]
+    attribs:
+      - ["License Type", lic_type, "'$$'"]
+      - ["License URL", _update_, "lic_url='$$'"]
+
+beforeAll:
+  - "set client_encoding='UTF8';"
+  - "set timezone=UTC;"
+  - |
+    create or replace function lookup_id (
+     _tablename varchar,
+     _colname varchar,
+     _colvalue varchar
+     ) RETURNS int
+     AS $$
+     DECLARE
+       rid int;
+     BEGIN
+     EXECUTE 'INSERT INTO ' || _tablename || '(' || _colname || ') SELECT '
+         || quote_literal(_colvalue)
+         || ' WHERE NOT EXISTS ( SELECT '
+         || quote_literal(_colvalue) || ' FROM ' || _tablename
+         || ' WHERE ' || _colname || '=' || quote_literal(_colvalue) || ')';
+
+     EXECUTE 'SELECT id from ' || _tablename || ' WHERE '
+         || _colname || ' = ' || quote_literal(_colvalue) INTO rid;
+
+     RETURN rid;
+
+     END;
+     $$
+     LANGUAGE plpgsql;
