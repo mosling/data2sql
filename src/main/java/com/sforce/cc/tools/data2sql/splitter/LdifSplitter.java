@@ -30,9 +30,9 @@ public class LdifSplitter
     private static final Logger LOGGER = LogManager.getLogger( LdifSplitter.class );
     private static final Level  always = Level.getLevel( "ALWAYS" );
 
-    private @Regex( 2 ) Pattern pattern = Pattern.compile( "\\[([0-9+])\\]=(.+)" );
-    private Mapping       mapping;
-    private MappingResult mr;
+    private @Regex( 2 ) Pattern       pattern = Pattern.compile( "\\[([0-9+])\\]=(.+)" );
+    private             Mapping       mapping;
+    private             MappingResult mr;
 
     LdifSplitter( Mapping mapping )
     {
@@ -91,7 +91,7 @@ public class LdifSplitter
     // In the case of multiple rows the ## is used to place the current row number starting at 0
     // If the data start with [<index>]=<data> we split it and replace '##' with the index
     @Override
-    public String replaceTemplate(MappingTable mappingTable, String attribute, @Nonnull String data )
+    public String replaceTemplate( MappingTable mappingTable, String attribute, @Nonnull String data )
     {
         List<String>   attributeMapping = mappingTable.findEntryForAttribute( attribute );
         MappingOptions options          = mapping.getOptions();
@@ -146,14 +146,14 @@ public class LdifSplitter
     @Override
     public String getErrorLocation( Map<String, List<String>> rowData )
     {
-        String tna = mapping.getOptions().getLdif().getTableNameAttribute();
-        List<String> l = rowData.get(tna);
-        if (null != l)
+        String       tna = mapping.getOptions().getLdif().getTableNameAttribute();
+        List<String> l   = rowData.get( tna );
+        if ( null != l )
         {
-            return l.get(0);
+            return l.get( 0 );
         }
 
-        return ("(missing " + tna + " attribute)");
+        return ( "(missing " + tna + " attribute)" );
     }
 
     private void finishDnEntry( String ldifLine, List<String> dnentry )
@@ -203,7 +203,10 @@ public class LdifSplitter
                     {
                         if ( attrdata.endsWith( in ) )
                         {
-                            LOGGER.error( "ignore intentionally DN entry '{}'", entryLine );
+                            if ( !mapping.getOptions().isShortErrorMsg() )
+                            {
+                                LOGGER.error( "ignore intentionally DN entry '{}'", entryLine );
+                            }
                             mapping.getCountIgnoredNodes().getAndIncrement();
                             return;
                         }
@@ -220,7 +223,10 @@ public class LdifSplitter
 
                     if ( null == mapping.getDbMapping().get( tabname ) )
                     {
-                        LOGGER.warn( "ignore entry {} without described mapping '{}'", tabname, entryLine );
+                        if ( mr.incIgnoredNode( tabname ) && !mapping.getOptions().isShortErrorMsg() )
+                        {
+                            LOGGER.warn( "ignore entry {} without described mapping '{}'", tabname, entryLine );
+                        }
                         return;
                     }
                 }

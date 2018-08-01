@@ -8,7 +8,7 @@ public class SplitterFactory
 {
     private SplitterFactory()
     {
-        // builder class
+        // factory class
     }
 
     public static @Nullable

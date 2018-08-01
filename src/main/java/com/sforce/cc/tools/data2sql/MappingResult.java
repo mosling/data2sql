@@ -30,6 +30,9 @@ public class MappingResult
     // rows per table
     private Map<String, AtomicInteger> tables = new TreeMap<>();
 
+    // ignored input nodes
+    private Map<String, AtomicInteger> ignoredNodes = new TreeMap<>();
+
     // attribute per table
     private Map<String, AttributeData> attributes = new TreeMap<>();
 
@@ -60,6 +63,22 @@ public class MappingResult
         return statementList.size();
     }
 
+    public void showIgnoredNodes()
+    {
+        Functions.logHeader( LOGGER, always, "ignored input data nodes" );
+        ignoredNodes.forEach( ( k, c ) -> LOGGER.log( always, "{} : {} entries", k, c ) );
+    }
+
+    public void showIgnoredSummary()
+    {
+        int sum = ignoredNodes.values().stream().mapToInt( Number::intValue ).sum();
+
+        Functions.logHeader( LOGGER, always, "summary of untransformed data nodes" );
+        LOGGER.log( always, "        count of nodes without mapping : {}", ignoredNodes.size() );
+        LOGGER.log( always, "                          with entries : {}", sum );
+        LOGGER.log( always, "count of intentionally ignored entries : {}", mapping.getCountIgnoredNodes() );
+    }
+
     public void showMappingOrder()
     {
         Map<Integer, List<String>> so = new TreeMap<>();
@@ -73,7 +92,6 @@ public class MappingResult
 
         Functions.logHeader( LOGGER, always, "generated output order" );
         so.forEach( ( k, l ) -> l.forEach( v -> LOGGER.log( always, "{} : {}", k, v ) ) );
-        LOGGER.log( always, "count of ignored nodes: {}", mapping.getCountIgnoredNodes() );
     }
 
     public void outputSqlStatements()
@@ -114,8 +132,14 @@ public class MappingResult
     {
         if ( analyze )
         {
-            tables.computeIfAbsent( tabname, k -> new AtomicInteger( 1 ) ).incrementAndGet();
+            tables.computeIfAbsent( tabname, k -> new AtomicInteger( 0 ) ).incrementAndGet();
         }
+    }
+
+    // add the table name to the Map, so in the end we have something like select count(*) from tabname
+    public boolean incIgnoredNode( String tabname )
+    {
+        return 1 == ignoredNodes.computeIfAbsent( tabname, k -> new AtomicInteger( 0 ) ).incrementAndGet();
     }
 
     public void addAttribute( String tabname, String attrname, String attrdata )
@@ -134,13 +158,13 @@ public class MappingResult
             return;
         }
 
-        Functions.logHeader( LOGGER, always,  "analyzing data" );
+        Functions.logHeader( LOGGER, always, "analyzing data" );
         try (BufferedWriter bw = new BufferedWriter( new FileWriter( mapping.getAnalyzeFilename() ) ))
         {
             for ( Map.Entry<String, AtomicInteger> entry : tables.entrySet() )
             {
-                String t = entry.getKey();
-                int rows = entry.getValue().get();
+                String t    = entry.getKey();
+                int    rows = entry.getValue().get();
 
                 for ( Map.Entry<String, AttributeData> attr : attributes.entrySet() )
                 {
@@ -166,7 +190,7 @@ public class MappingResult
                         if ( entries <= rows )
                         {
                             // decrement groups by 1 if more than 1 empty entry (was counted as group)
-                            if ( groups  > 1 )
+                            if ( groups > 1 )
                             {
                                 bw.write( todo + "Foreign Key Column" + "\n" );
                             }

@@ -58,12 +58,13 @@ public class Functions
         throw new IOException( String.format( "can't found ressource '%s'", name ) );
     }
 
-    public static void logHeader(Logger LOGGER, Level level, String header )
+    public static void logHeader( Logger LOGGER, Level level, String header )
     {
-        String pp = "==============================";
-        int    l  = header.length();
-        int    h  = ( pp.length() * 2 - l ) / 2;
-        int    b  = h + ( 60 - 2 * h - l );
-        LOGGER.log( level, "{} {} {}", pp.substring( 0, b ), header, pp.substring( 0, h ) );
+        String tmpHeader = null != header && !header.isEmpty() ? " " + header + " " : "";
+        String pp        = "==============================";
+        int    l         = tmpHeader.length();
+        int    h         = ( pp.length() * 2 - l ) / 2;
+        int    b         = h + ( 60 - 2 * h - l );
+        LOGGER.log( level, "{}{}{}", pp.substring( 0, b ), tmpHeader, pp.substring( 0, h ) );
     }
 }

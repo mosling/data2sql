@@ -46,9 +46,9 @@ public class MappingTable
         {
             String an = cl.get( 0 );
 
-            if ( cl.size() != 3 )
+            if ( cl.size() < 3 || cl.size() > 4)
             {
-                LOGGER.fatal( "attribute needs 3 parts {}.'{}' has {}", m, an, cl.size() );
+                LOGGER.fatal( "attribute needs 3 (optional 4) parts {}.'{}' has {}", m, an, cl.size() );
             }
 
             if ( al.contains( an ) )

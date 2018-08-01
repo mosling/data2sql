@@ -8,17 +8,15 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-@JsonIgnoreProperties (ignoreUnknown = true)
+@JsonIgnoreProperties( ignoreUnknown = true )
 public class LdifOptions
 {
-    // @formatter:off
     @Getter @Setter private String               tableNameAttribute  = "dn";
     @Getter @Setter private List<String>         fkEndings           = Collections.emptyList();
     @Getter @Setter private List<String>         ignoredAttributes   = Collections.emptyList();
     @Getter @Setter private Map<String, Boolean> referenceAttributes = Collections.emptyMap();
     @Getter @Setter private List<String>         metaAttributes      = Collections.emptyList();
     @Getter @Setter private List<String>         ignoredNodes        = Collections.emptyList();
-    //@formatter:on
 
     public LdifOptions()
     {
