@@ -1,24 +1,23 @@
 package com.sforce.cc.tools.data2sql;
 
-import lombok.Getter;
-import lombok.Setter;
 import com.sforce.cc.tools.data2sql.splitter.CsvOptions;
 import com.sforce.cc.tools.data2sql.splitter.LdifOptions;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Collections;
 import java.util.List;
 
 public class MappingOptions
 {
-    // @formatter:off
-    @Getter @Setter private LdifOptions          ldif                = new LdifOptions();
-    @Getter @Setter private CsvOptions           csv                 = new CsvOptions();
+    @Getter @Setter private LdifOptions ldif = new LdifOptions();
+    @Getter @Setter private CsvOptions  csv  = new CsvOptions();
 
-    @Getter @Setter private List<String>         errorCountOnlyFor   = Collections.emptyList();
-    @Getter @Setter private List<List<String>>   quoteOutputData     = Collections.emptyList();
-    @Getter @Setter private boolean              shortErrorMsg       = false;
-    @Getter @Setter private boolean              dataOnly            = false;
-    // @formatter:on
+    @Getter @Setter private List<String>       errorCountOnlyFor = Collections.emptyList();
+    @Getter @Setter private List<List<String>> quoteOutputData   = Collections.emptyList();
+    @Getter @Setter private boolean            shortErrorMsg     = false;
+    @Getter @Setter private boolean            dataOnly          = false;
+    @Getter @Setter private String             dataOnlySeparator = "";
 
     public MappingOptions()
     {

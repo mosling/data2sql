@@ -124,6 +124,7 @@ public class Main
 
             MappingResult mr = splitter.execute( );
 
+            mr.showIgnoredNodes();
             mr.showMappingOrder();
             mr.outputSqlStatements();
             mr.analyzeData();
@@ -133,7 +134,8 @@ public class Main
                 dbMapping.showErrorCategories();
             }
 
-            Functions.logHeader( LOGGER, always,"parameter overview" );
+            mr.showIgnoredSummary();
+            Functions.logHeader( LOGGER, always,"" );
         }
         catch ( IOException e )
         {

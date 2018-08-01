@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -46,15 +47,24 @@ public class CsvSplitter
             String tabname = csvFile.getName().replace( ".csv", "" );
 
             CsvMapper mapper = new CsvMapper();
-            // use first row as header
-            CsvSchema schema = CsvSchema
-                    .emptySchema()
-                    .withColumnSeparator( mapping.getOptions().getCsv().getSeparator() )
-                    .withHeader();
+            CsvSchema.Builder builder = new CsvSchema.Builder();
+
+            boolean withColumnNames = !mapping.getOptions().getCsv().getColumnNames().isEmpty();
+            if (withColumnNames)
+            {
+                for (String c : mapping.getOptions().getCsv().getColumnNames())
+                {
+                    builder.addColumn( c );
+                }
+            }
+
+            builder.setUseHeader( !withColumnNames );
+            builder.setColumnSeparator( mapping.getOptions().getCsv().getSeparator() );
+            builder.setSkipFirstDataRow( mapping.getOptions().getCsv().isSkipFirstRow() );
 
             MappingIterator<Map<String, String>> it = mapper
                     .readerFor( Map.class )
-                    .with( schema )
+                    .with( builder.build() )
                     .readValues( csvFile );
 
             while ( it.hasNext() )

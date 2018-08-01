@@ -1,0 +1,23 @@
+comment: |
+  Create a list of number equeals power of two from a csv dataset
+
+options:
+  dataOnly: true
+  dataOnlySeparator: "^2 = "
+  shortErrorMsg: true
+  csv:
+    separator: ";"
+    columnNames:
+      - number
+      - power_0
+      - power_1
+      - power_2
+    skipFirstRow: false
+
+dbMapping:
+  power:
+    table: powerlist
+    attribs:
+      - [number, _, "$$"]
+      - [power_2, _, "$$"]
+

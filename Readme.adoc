@@ -4,28 +4,41 @@
 
 To start transformation the application has some parameters.
 
-ldif-file::
-The filename of the ldif file.
+data-file (argument 1)::
+The filename which contains the data to transform.
 
-mapping::
+mapping (argument 2)::
 This can be a resource embedded in the jar file or a filename, using this search order, first resource
 and if not found search for file.
 
-output-file::
+output-file (argument 3)::
 The name of the output file
 
 [nodrop]::
 is this option is used to deactivate all **drop** statements from the poststep part,
 this is useful if you want to review the temporary data
 
-[analyze]::
+[analyze=<output-file>]::
 with this option the applications displays some information generated from the ldif data
+
+[csv|ldif]::
+the data format of the input data, this decides which splitter is used, at the current
+implementation we have *ldif* and *csv*
+
+[group-count=<threshold>]::
+this is a threshold for the analyzer to suggest a foreign key relation
 
 ----
 java -jar ldif-converter.jar idsvc.ldif /mapping-v2.yaml prod.sql nodrop
 ----
+== Input Data Splitter
 
-== LDIF partitioning
+In a first step the input data is split into blocks which hold a set of attributes each
+with a number of data. This structure is converted into the output using the mapping rules.
+
+You can write a splitter for each data set by overwrite the `Splitter` interface.
+
+== LDIF Splitter
 
 The ldif file contains a number of blocks (ldap-tree-leafs) separated by one or more empty lines.
 
@@ -118,7 +131,34 @@ for this ldif attribute.
 
 == Mapping Options
 
-=== fkEndings
+==== errorCountOnlyFor
+If the process has finished there can be a number of missing mandatory attributes, the default behavior is to show
+all these entries, if the error line contains one of the strings in this list the line isn't shown but at the end
+of this error category the number of failures of this type is shown, this works perfect with
+`friendlyNames` together, but please aware that these entries are used for every failure line, in the example two
+dashes are added, this is the separator for `friendlyNames`.
+
+==== shortErrorMsg
+If true only the `tableNameAttribute` entry is logged only, if false all current block entries are logged.
+The information is used for other warnings or errors too. To see all messages set this value to
+false.
+
+==== dataOnly (default = false)
+This is used for generating arbitrary output, if true the `values` section from the transformation is the only output
+. In other case the application generates valid SQL insert and update statements.
+
+==== dataOnlySeparator (default = "")
+In the case that the result contains the computed data only, the will be joined to one line of output, this string is
+used as separator between the data.
+
+==== quoteOutputData
+A list of pairs, every pair is used during output to call the java replace function which replaces the first string
+with the second, please be carefully if you using more than one entry, this entries are executed in the given
+order and can be overwrite earlier transitions. The quoting is done before the replacement of the template
+transformation (i.e. the added single quote for sql strings are not replaced).
+
+=== LDIF Options
+==== fkEndings
 This contains a list of attrData endings to identify a foreign key, in this case only the first part is the data
 
 ----
@@ -129,15 +169,15 @@ table := ou=serviceTypes,ou=identity,dc=demandware,dc=com
 
 This is information is used during analyzing the data and to extract the target data from such attributes.
 
-=== ignoreNodes
+==== ignoreNodes
 During parsing all entries with an `tableNameAttribute` which ends of one string from list are ignored, this is
 helpful during test phase to save time and space.
 
-=== ignoredAttributes
+==== ignoredAttributes
 This is a list of `attrNames` which are ignored during parsing process, normally this is used for generated back
 references or columns which can't used at the moment.
 
-=== referenceAttributes
+==== referenceAttributes
 A map of `attrNames`, boolean` which are interpreted as references ([see](#reference-attributes))
 
 ----
@@ -146,53 +186,42 @@ referenceAttributes:
     creatorsName: false
 ----
 
-=== metaAttributes
+==== metaAttributes
 A list of `attrNames` which are interpreted as meta attributes ([see](#meta-attribute-(i.e.-sunkeyvalue)))
 
-=== errorCountOnlyFor
-If the process has finished there can be a number of missing mandatory attributes, the default behavior is to show
-all these entries, if the error line contains one of the strings in this list the line isn't shown but at the end
-of this error category the number of failures of this type is shown, this works perfect with
-`friendlyNames` together, but please aware that these entries are used for every failure line, in the example two
-dashes are added, this is the separator for `friendlyNames`.
-
-=== shortError
-If true only the `tableNameAttribute` entry is logged only, if false all current block entries are logged.
-
-=== dataOnly
-This is used for generating arbitrary output, if true the `values` section from the transformation is the only output
-. In other case the application generates valid SQL insert and update statements.
-
-=== quoteOutput
-A list of pairs, every pair is used during output to call the java replace function which replaces the first string
-with the second, please be carefully if you using more than one entry, this entries are executed in the given
-order and can be overwrite earlier transitions. The quoting is done before the replacement of the template
-transformation (i.e. the added single quote for sql strings are not replaced).
-
-=== configuration example
-
+.ldif configuration example
 ----
 options:
-  quotes:
+  ldif:
+    ignoredNodes:
+      - "ou=auditlog,ou=identity,dc=demandware,dc=com"
+    tableNameAttribute: dn
+    ignoredAttributes:
+      - objectclass
+      - memberOf
+    referenceAttributes:
+      - uniqueMember
+    metaAttributes:
+      - sunKeyValue
+    fkEndings:
+      - "dc=demandware,dc=com"
+  quoteOutputData:
       - ["'", "''"]
-  ignoredNodes:
-    - "ou=auditlog,ou=identity,dc=demandware,dc=com"
-  tableNameAttribute: dn
-  ignoredAttributes:
-    - objectclass
-    - memberOf
-  referenceAttributes:
-    - uniqueMember
-  metaAttributes:
-    - sunKeyValue
-  fkEndings:
-    - "dc=demandware,dc=com"
   errorCountOnlyFor:
     - "-- DELETED"
     - "-- LOCKED"
     - "-- organizationType"
   shortErrorMsg: true
+  dataOnly: false
 ----
+
+=== CSV Options
+
+==== separator (default ,)
+This information is used to split the row of a csv formatted file.
+
+==== columnNames
+A list of string values, one entry for each column.
 
 == Mapping Description
 
@@ -213,12 +242,13 @@ The name of the target SQL table.
 ==== attribs
 A list of lists each with three entries
 
-* the attrName from the ldif file or '_' if it is a constant value
-* the column name(s) for the data in the third entry or `_update_` to generate an update statement
-* the template to output something (with **dataOnly** false insert or update-where statementa are created), the
+. the attrName from the ldif file or '_' if it is a constant value
+. the column name(s) for the data in the third entry or `_update_` to generate an update statement
+. the template to output something (with **dataOnly** false insert or update-where statementa are created), the
     template is a simple string with two placeholders
 ** '$$' for the attrData
 ** '##' for the optional index of the data (i.e. the prefix [<index>]=...)
+. optional constant which is used for optional non-existing data
 
 ==== optionalAttribs
 A list of optional attributes, if such an attribute is missing the statement is created without this, all other
@@ -273,7 +303,7 @@ child-ou=people,ou=identity,dc=organization,dc=com:
 This is used as additional entryName for some log messages, it's a list of existing
 attributes for the current entry, if no attribute exists, the name is printed, all names are separeted by " -- ".
 
-==== mapping example
+.mapping example
 ----
 ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com:
   table: organization

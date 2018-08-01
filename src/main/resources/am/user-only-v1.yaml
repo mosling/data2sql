@@ -1,20 +1,30 @@
+comment: |
+  Extract the user information only as CSV file.
+
 options:
-  fkEndings:
-    - "dc=demandware,dc=com"
-  ignoredAttributes:
-    - objectclass
-    - uniqueMember
+  ldif:
+    fkEndings:
+     - "ou=identity,dc=demandware,dc=com"
+    ignoredAttributes:
+     - objectclass
+     - uniqueMember
+    ignoredNodes:
+      - "dc=openam,dc=demandware,dc=com"
+
   shortErrorMsg: true
-  dataOnly: true
-  quotes:
+  quoteOutputData:
     - ["\"", "\\\""]
+  dataOnly: true
+  dataOnlySeparator: ";"
+
 dbMapping:
   ou=people,ou=identity,dc=demandware,dc=com:
     table: people
+    optionalAttribs: [ userState ]
     attribs:
-      - [cn, id, "\"$$\""]
-      - [mail, email, "\"$$\""]
-      - [displayName, displayname, "\"$$\""]
-      - [givenName, givenname, "\"$$\""]
-      - [sn, surename, "\"$$\""]
-      - [userState, status, "\"$$\""]
+      - [cn, _, "$$"]
+      - [mail, _, "$$"]
+#      - [displayName, displayname, "\"$$\""]
+#      - [givenName, givenname, "\"$$\""]
+#      - [sn, surename, "\"$$\""]
+      - [userState, _, "$$", "UNDEF" ]

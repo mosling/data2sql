@@ -2,9 +2,9 @@ package com.sforce.cc.tools.data2sql;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.sforce.cc.tools.data2sql.splitter.Splitter;
 import lombok.Getter;
 import lombok.Setter;
-import com.sforce.cc.tools.data2sql.splitter.Splitter;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -78,7 +78,8 @@ public class Mapping
         {
             errorCountingMap.replaceAll( ( k, v ) -> 0 );
             String sizeStr = String.valueOf( e.getValue().size() );
-            String hs = spaces.substring( 0, Math.max( 0, spaces.length() - sizeStr.length() - " times ".length() ) );
+            String hs      = spaces.substring( 0,
+                    Math.max( 0, spaces.length() - sizeStr.length() - " times ".length() ) );
             String sCatErr = String.format( "%s%s times : %s", hs, sizeStr, e.getKey() );
             toc.add( sCatErr );
             LOGGER.log( always, sCatErr );
@@ -171,17 +172,20 @@ public class Mapping
             {
                 boolean optional = mappingTable.getOptionalAttribs().contains( attr );
                 Level   ll       = Level.getLevel( optional ? "WARN" : "ERROR" );
-                if ( !dnSeen )
+                if ( !options.isShortErrorMsg() )
                 {
-                    LOGGER.log( ll, "transforming entry: {}", splitter.getErrorLocation( rowData ) );
-                    LOGGER.log( ll, "   with mapping #{}# for target #{}#", mappingBlock, mappingTable.getTable() );
-                    if ( LOGGER.getLevel().intLevel() >= ll.intLevel() )
+                    if ( !dnSeen )
                     {
-                        dnSeen = true;
+                        LOGGER.log( ll, "transforming entry: {}", splitter.getErrorLocation( rowData ) );
+                        LOGGER.log( ll, "   with mapping #{}# for target #{}#", mappingBlock, mappingTable.getTable() );
+                        if ( LOGGER.getLevel().intLevel() >= ll.intLevel() )
+                        {
+                            dnSeen = true;
+                        }
                     }
+                    LOGGER.log( ll, "            no data for {} attribute #{}#", optional ? "optional" : "mandatory",
+                            attr );
                 }
-                LOGGER.log( ll, "            no data for {} attribute #{}#", optional ? "optional" : "mandatory",
-                        attr );
 
                 if ( !optional )
                 {
@@ -253,7 +257,7 @@ public class Mapping
         }
 
         // create no output for missing attributes or to less attributes
-        if ( !matchAll || 0 == matchCount  )
+        if ( !matchAll || 0 == matchCount )
         {
             if ( !options.isShortErrorMsg() )
             {
@@ -307,7 +311,7 @@ public class Mapping
 
             if ( options.isDataOnly() )
             {
-                dmlList.add( values.stream().collect( Collectors.joining( "," ) ) );
+                dmlList.add( values.stream().collect( Collectors.joining( options.getDataOnlySeparator() ) ) );
             }
             else
             {
@@ -378,7 +382,8 @@ public class Mapping
         if ( null != mappingTable )
         {
             int parentOrder = mappingTable.getOrder();
-            int sc = mr.addToDmlStatements( parentOrder, generateDmlStatement( splitter, options, tabname, tabData ) );
+            int sc          = mr.addToDmlStatements( parentOrder,
+                    generateDmlStatement( splitter, options, tabname, tabData ) );
             LOGGER.debug( "transform primary table {}: add {} statements", tabname, sc );
             int arrayOrder = parentOrder;
             for ( String str : mappingTable.getSuccessors() )

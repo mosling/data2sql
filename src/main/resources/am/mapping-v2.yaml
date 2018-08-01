@@ -21,6 +21,7 @@ options:
     - ["'", "''"]
   errorCountOnlyFor:
     - "-- organizationType"
+    - "-- DELETED"
   shortErrorMsg: true
 
 dbMapping:
