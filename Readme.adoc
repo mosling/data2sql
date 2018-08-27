@@ -56,7 +56,7 @@ to the root node. The data of this attribute To handle this information we split
 dn: uid=qa.1455190856@demandware.com,ou=people,ou=identity,dc=demandware,dc=com
 
 ldif-table := ou=people,ou=identity,dc=demandware,dc=com
-ldif_pk := qa.1455190856@demandware.com
+ldif-pk := qa.1455190856@demandware.com
 ----
 
 === data attributes

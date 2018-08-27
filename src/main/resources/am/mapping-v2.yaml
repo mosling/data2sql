@@ -190,7 +190,7 @@ dbMapping:
         - [uid, fk_oauth2provider, "(select max(id) from oauth2provider where oauth2provider_uid = '$$')"]
         - ["sunKeyValue-com.forgerock.openam.oauth2provider.scopes", fk_scope, "(select lookup_id('scope', 'shortname', '$$'))"]
         - [_, default_scope, false]
-  scope-ou=default,ou=OrganizationConfig,ou=1.0,ou=AgentService,ou=services,dc=openam,dc=demandware,dc=com:
+  default_scope-ou=default,ou=OrganizationConfig,ou=1.0,ou=AgentService,ou=services,dc=openam,dc=demandware,dc=com:
         table: oauth2provider_scope
         attribs:
           - [uid, fk_oauth2provider, "(select max(id) from oauth2provider where oauth2provider_uid = '$$')"]
