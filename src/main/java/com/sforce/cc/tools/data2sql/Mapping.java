@@ -52,10 +52,15 @@ public class Mapping
         // Jackson need the default constructor
     }
 
-    boolean checkMappingAttributes()
+    public boolean checkMappingAttributes()
     {
         Long c = dbMapping.entrySet().stream().filter( e -> !e.getValue().checkDataConsistence( e.getKey() ) ).count();
         return c == 0;
+    }
+
+    public boolean hasMappingFor(String nodeName)
+    {
+        return dbMapping.containsKey( nodeName );
     }
 
     @SuppressWarnings( "squid:S3776" )

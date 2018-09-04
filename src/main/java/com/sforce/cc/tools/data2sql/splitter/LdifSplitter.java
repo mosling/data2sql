@@ -175,7 +175,7 @@ public class LdifSplitter
             return;
         }
 
-        String tabname = "unknownTable";
+        String tabname = "";
 
         // parse attributes, every attribute can have more than one entry
         // we need a list to store alle values for each attribute-name
@@ -205,7 +205,8 @@ public class LdifSplitter
                         {
                             if ( !mapping.getOptions().isShortErrorMsg() )
                             {
-                                LOGGER.error( "ignore intentionally DN entry '{}'", entryLine );
+                                LOGGER.error( "ignore intentionally {} entry '{}'", options.getTableNameAttribute(),
+                                        entryLine );
                             }
                             mapping.getCountIgnoredNodes().getAndIncrement();
                             return;
@@ -221,7 +222,7 @@ public class LdifSplitter
                     }
                     tabname = parts[1];
 
-                    if ( null == mapping.getDbMapping().get( tabname ) )
+                    if ( !mapping.hasMappingFor( tabname ) )
                     {
                         if ( mr.incIgnoredNode( tabname ) && !mapping.getOptions().isShortErrorMsg() )
                         {
@@ -263,7 +264,7 @@ public class LdifSplitter
                 // add the attribute name with its data to the tabData structure
                 // if data are available only, mapping check again if the first line wasn't
                 // the table entry
-                if ( null == mapping.getDbMapping().get( tabname ) )
+                if ( !mapping.hasMappingFor( tabname ) )
                 {
                     LOGGER.warn( "first ldif block line must be the table entry starting with {} but is '{}'",
                             options.getTableNameAttribute(), entryLine );
@@ -272,6 +273,7 @@ public class LdifSplitter
 
                 List<String> newDataList = DataModifier.modifyData( mapping.getDbMapping().get( tabname ), attrname,
                         attrdata );
+
                 if ( !newDataList.isEmpty() )
                 {
                     if ( !tabData.containsKey( attrname ) )
@@ -284,8 +286,16 @@ public class LdifSplitter
             }
         }
 
-        mr.incTable( tabname );
-        mapping.doTransformation( this, tabname, tabData, mr );
+        if ( !tabname.isEmpty() )
+        {
+            mr.incTable( tabname );
+            mapping.doTransformation( this, tabname, tabData, mr );
+        }
+        else
+        {
+            LOGGER.info( "ignore block without {} entry (first line = '{}')", options.getTableNameAttribute(),
+                    ldifEntry.isEmpty() ? "<empty entry>" : ldifEntry.get( 0 ) );
+        }
     }
 
     private String decode( String str )

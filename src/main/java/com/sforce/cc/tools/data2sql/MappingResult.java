@@ -98,6 +98,12 @@ public class MappingResult
     {
         Functions.logHeader( LOGGER, always, "output sql statements" );
 
+        if (mapping.getOutputFilename().isEmpty())
+        {
+            LOGGER.error( "outputSqlStatements called but no outputFilename set -- ignore this step" );
+            return;
+        }
+
         addToDmlStatements( 0, mapping.getBeforeAll() );
 
         if ( mapping.getAfterAll() != null )
