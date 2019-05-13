@@ -1,5 +1,6 @@
 comment: |
-  The next evolution with separated realms. Attribute dwRealmId no longer exists.
+  The next evolution with separated realms. Attribute dwRealmId no longer exists. This mapping
+  uses the uniqueMember to connect two entries.
 
 options:
   ldif:

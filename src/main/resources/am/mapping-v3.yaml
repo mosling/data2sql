@@ -1,0 +1,209 @@
+comment: |
+  UNDER CONSTRUCTION!!
+  Refactored script, memberOf is now a full foreign key and can be used directly.
+
+options:
+  ldif:
+    ignoredNodes:
+      - "ou=auditlog,ou=identity,dc=demandware,dc=com"
+    tableNameAttribute: dn
+    ignoredAttributes:
+      - objectclass
+      - uniqueMember
+    referenceAttributes:
+      memberof: true
+      creatorsName: false
+    metaAttributes:
+      - sunKeyValue
+    fkEndings:
+      - "dc=demandware,dc=com"
+
+  quoteOutputData:
+    - ["'", "''"]
+  errorCountOnlyFor:
+    - "-- organizationType"
+    - "-- DELETED"
+  shortErrorMsg: true
+
+dbMapping:
+  ou=serviceTypes,ou=identity,dc=demandware,dc=com:
+    table: service_type
+    attribs:
+      - [cn, service_type_cn, "'$$'"]
+      - [description, service_type_descr, "'$$'"]
+
+  ou=serviceProviders,ou=identity,dc=demandware,dc=com:
+    table: service_provider
+    order: 2
+    successors: [assertion]
+    attribs:
+      - [cn, service_provider_cn, "'$$'"]
+      - [serviceType, fk_service_type, "(select max(id) from service_type where service_type_cn = '$$')"]
+      - [spEntityId, entity_id, "'$$'"]
+      - [spName, spname, "'$$'"]
+      - [spURL, spurl, "'$$'"]
+  assertion-ou=serviceProviders,ou=identity,dc=demandware,dc=com:
+    table: temp_sp_assertion
+    attribs:
+      - [cn, fk_sp, "(select max(id) from service_provider where service_provider_cn = '$$')"]
+      - [spAssertionPlugin, plugin, "'$$'"]
+
+  ou=default,ou=OrganizationConfig,ou=1.0,ou=sunFMSAML2MetadataService,ou=services,dc=openam,dc=demandware,dc=com:
+    table: service_provider
+    order: 10
+    attribs:
+      - [ dn, _update_, "entity_id = '$$'"]
+      - [ "sunKeyValue-sun-fm-saml2-metadata", metadata, "XMLPARSE(DOCUMENT '$$')" ]
+      - [ "sunKeyValue-sun-fm-saml2-entityconfig", entityconfig, "XMLPARSE(DOCUMENT '$$')" ]
+
+  ou=pods,ou=groups,ou=identity,dc=demandware,dc=com:
+    table: pod
+    description: "list of pods with existing instances"
+    order: 30
+    attribs:
+      - [cn, pod_cn, "'$$'"]
+
+  ou=tenants,ou=identity,dc=demandware,dc=com:
+    table: instance
+    description: "all instances we found at the pod-info endpoints"
+    order: 35
+    attribs:
+      - [cn, instance_cn, "'$$'"]
+      - [description, instance_descr, "'$$'"]
+      - [tenantType, fk_instance_type, "(select lookup_id('instance_type', 'instance_type_cn', '$$'))"]
+      - [o, fk_pod, "(select id from pod where pod_cn = '$$')"]
+      -
+  ou=realms,ou=identity,dc=demandware,dc=com:
+    table: realm
+    description: "all realms for customers, 4 characters at the moment"
+    order: 30
+    optionalAttribs: ["memberof-ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com"]
+    attribs:
+      - [ cn, realm_cn, "'$$'"]
+      - [ customerName, customer_name, "'$$'"]
+      - [ description, realm_name, "'$$'"]
+      - [ "memberof-ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com", fk_organization, "(select id from organization where organization_cn = '$$')" ]
+
+  ou=organizations,ou=groups,ou=identity,dc=demandware,dc=com:
+    table: organization
+    order: 20
+    optionalAttribs: [createTimestamp, passwordHistorySize, passwordMinEntropy, passwordDaysExpiration, organizationType]
+    attribs:
+      - [cn, organization_cn, "'$$'"]
+      - [o, organization_name, "'$$'"]
+      - [createTimestamp, created, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+      - [passwordHistorySize, password_history_size, "'$$'"]
+      - [passwordMinEntropy, password_min_entropy, "'$$'"]
+      - [passwordDaysExpiration, password_days_expiration, "'$$'"]
+      - [organizationType, fk_organization_type, "(select lookup_id('organization_type', 'shortname', '$$'))"]
+
+  ou=people,ou=identity,dc=demandware,dc=com:
+    table: people
+    order: 10
+    splitData:
+      roleTenantFilter: ';'
+    friendlyNames: [mail]
+    successors: [primary-org, "roleTenantFilter?filter", "sun-fm-saml2-nameid-infokey?sp"]
+    optionalAttribs: [userPassword, givenName, sn, oathDeviceProfiles, passwordModificationTimestamp, passwordExpirationTimestamp]
+    attribs:
+      - [cn, people_cn, "'$$'"]
+      - [displayName, displayname, "'$$'"]
+      - [mail, email, "'$$'"]
+      - [givenName, givenname, "'$$'"]
+      - [sn, surename, "'$$'"]
+      - [userState, fk_state, "(select lookup_id('state', 'shortname', '$$'))"]
+      - [userPassword, password, "'$$'"]
+      - [oathDeviceProfiles, oath_device, "'$$'"]
+      - [passwordModificationTimestamp, pwd_modify_ts, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+      - [passwordExpirationTimestamp, pwd_expiration_ts, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+      - [modifyTimestamp, modify_ts, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+      - [createTimestamp, create_ts, "to_timestamp('$$','YYYYMMDDHH24MISS')"]
+  primary-org-ou=people,ou=identity,dc=demandware,dc=com:
+    description: "Adding relationship between people and organization, order 40: we need the organization entry."
+    table: temp_people_access
+    friendlyNames: [mail,userState]
+    order: 40
+    attribs:
+      - [cn, fk_people, "(select max(id) from people where people_cn = '$$')"]
+      - [o, fk_organization, "(select max(id) from organization where organization_cn = '$$')" ]
+      - [_, primorg, true ]
+  filter-ou=people,ou=identity,dc=demandware,dc=com:
+    table: temp_role_filter
+    optionalAttribs: [roleTenantFilter]
+    attribs:
+      - [cn, fk_people, "(select max(id) from people where people_cn = '$$')"]
+      - [roleTenantFilter, "filter_enum,filter", "(regexp_split_to_array('$$', ':'))[1],(regexp_split_to_array('$$', ':'))[2]"]
+  sp-ou=people,ou=identity,dc=demandware,dc=com:
+    table: people_service_provider
+    attribs:
+      - [cn, fk_people, "(select max(id) from people where people_cn = '$$')"]
+      - [sun-fm-saml2-nameid-infokey, "fk_service_provider,sp_name","(select max(id) from service_provider where entity_id = (regexp_split_to_array('$$', '\\|'))[2] ),(regexp_split_to_array('$$', '\\|'))[3] "]
+
+beforeAll:
+  - "set client_encoding='UTF8';"
+  - "set timezone=UTC;"
+
+  - |
+    create or replace function lookup_id (
+     _tablename varchar,
+     _colname varchar,
+     _colvalue varchar
+     ) RETURNS int
+     AS $$
+     DECLARE
+       rid int;
+     BEGIN
+     EXECUTE 'INSERT INTO ' || _tablename || '(' || _colname || ') SELECT '
+         || quote_literal(_colvalue)
+         || ' WHERE NOT EXISTS ( SELECT '
+         || quote_literal(_colvalue) || ' FROM ' || _tablename
+         || ' WHERE ' || _colname || '=' || quote_literal(_colvalue) || ')';
+
+     EXECUTE 'SELECT id from ' || _tablename || ' WHERE '
+         || _colname || ' = ' || quote_literal(_colvalue) INTO rid;
+
+     RETURN rid;
+
+     END;
+     $$
+     LANGUAGE plpgsql;
+  - "create table IF NOT EXISTS temp_people_role (fk_people integer, fk_role integer);"
+  - "create table IF NOT EXISTS temp_people_access (fk_people integer, fk_organization integer, primorg boolean );"
+  - "create table IF NOT EXISTS temp_role_filter (fk_people integer, fk_role integer, filter_enum varchar, filter varchar );"
+  - "create table IF NOT EXISTS temp_sp_assertion (fk_sp integer, fk_assertion integer, plugin varchar(50));"
+
+  - "delete from temp_people_role;"
+  - "delete from temp_people_access;"
+  - "delete from temp_role_filter;"
+  - "delete from temp_sp_assertion;"
+
+  - "insert into role (role_cn, role_descr) values ('primary-org','Legacy Primary Organization');"
+
+afterAll:
+  - "-- fill people_access table"
+  - "insert into people_access ( fk_people, fk_role, fk_organization) select distinct pr.fk_people, fk_role, fk_organization from temp_people_role pr, temp_people_access po where pr.fk_people = po.fk_people order by pr.fk_people;"
+
+  - "-- adding special temporary role identify the primary org"
+  - "insert into people_access (fk_people, fk_organization, fk_role) select distinct fk_people, fk_organization, (select min(id) from role where role_cn='primary-org') from temp_people_access where primorg = true;"
+
+  - "-- update temp_role_filter role and copy the filter to the people_access table"
+  - "update temp_role_filter set fk_role = (select id from role where enum_name=filter_enum);"
+  - "update people_access pa set instance_filter = (select filter from temp_role_filter where fk_people=pa.fk_people and fk_role = pa.fk_role);"
+
+  - "-- connect assertions with service provider"
+  - "insert into assertion (shortname) (select distinct plugin from temp_sp_assertion);"
+  - "update temp_sp_assertion set fk_assertion = (select min(id) from assertion where shortname = plugin);"
+  - "insert into service_provider_assertion (fk_service_provider, fk_assertion) select distinct fk_sp, fk_assertion from temp_sp_assertion;"
+
+  - "-- insert the third party organization type and update, we have only sfAccounts"
+  - "insert into third_party_type (shortname, descr) values ('sf', 'salesforce identifier');"
+  - "update third_party_organization set fk_third_party_type = (select id from third_party_type where shortname='sf');"
+
+  - "-- connect the instance/tenants to the realms depending at the first four characters"
+  - "update instance set fk_realm = (select id from realm where substring(instance_cn from 0 for 5) = realm_cn);"
+
+  - "drop table temp_people_role;"
+  - "drop table temp_people_access;"
+  - "drop table temp_role_filter;"
+  - "drop table temp_sp_assertion;"
+

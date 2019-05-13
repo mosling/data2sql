@@ -178,7 +178,7 @@ public class LdifSplitter
         String tabname = "";
 
         // parse attributes, every attribute can have more than one entry
-        // we need a list to store alle values for each attribute-name
+        // we need a list to store all values for each attribute-name
         Map<String, List<String>> tabData = new HashMap<>();
         LdifOptions               options = mapping.getOptions().getLdif();
         for ( String entryLine : ldifEntry )
@@ -188,12 +188,12 @@ public class LdifSplitter
             {
                 // split the line at the first ':' in a attribute name and the attribute data
                 String attrname = entryLine.substring( 0, dp ).trim();
-                String attrdata = decode( entryLine.substring( dp + 1 ).trim() );
-
                 if ( options.getIgnoredAttributes().contains( attrname ) )
                 {
                     continue;
                 }
+
+                String attrdata = decode( entryLine.substring( dp + 1 ).trim() );
 
                 // this is the primary key for the entry
                 if ( options.getTableNameAttribute().equalsIgnoreCase( attrname ) )
@@ -212,7 +212,7 @@ public class LdifSplitter
                             return;
                         }
                     }
-                    // generate tabname from <tabneAttribute (i.e. dn)>: uid=XYZ,<tabname>
+                    // generate tabname from <tableNameAttribute (i.e. dn)>: uid=XYZ,<tabname>
                     String[] parts = attrdata.split( ",", 2 );
                     if ( parts.length < 2 )
                     {

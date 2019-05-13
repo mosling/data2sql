@@ -299,11 +299,13 @@ CREATE VIEW view_people_org_role AS
     pa.fk_organization,
     pa.fk_role,
     p.people_cn,
+    p.email,
     p.displayname,
     p.fk_state,
     o.organization_name,
     r.role_cn,
-    r.enum_name
+    r.enum_name,
+    r.role_scope
   FROM people_access pa,
     people p,
     organization o,
