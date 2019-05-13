@@ -1,6 +1,6 @@
-= Convert LDIF Data to SQL or Text
+= Convert Data to SQL or Text
 
-== Command line
+== Command Line
 
 To start transformation the application has some parameters.
 
@@ -47,7 +47,7 @@ is splitted into an attribute name (`attrName`) and its data (`attrData`) which 
 Depending at the open structure of ldap every attrName for a block can have a list of `attrData`, but often this
 list has one entry only.
 
-=== table name attribute
+=== Table Name Attribute
 This special attribute (i.e. **dn:** but configurable using the `tableNameAttribute` option) is something like
 the primary key of an ldap tree. It describes the path from the leaf
 to the root node. The data of this attribute To handle this information we split the dn value at the first comma.
@@ -59,7 +59,7 @@ ldif-table := ou=people,ou=identity,dc=demandware,dc=com
 ldif-pk := qa.1455190856@demandware.com
 ----
 
-=== data attributes
+=== Data Attributes
 In this the case the entry is a simple string which is used as data.
 
 ----
@@ -69,7 +69,7 @@ attrName = migratedWith
 attrData = com.demandware.am.common.util.DocAccessOrgMaintainer
 ----
 
-=== multiple optional indexed data attributes
+=== Multiple Optional Indexed Data Attributes
 In LDIF it is allowed to have every attribute name multiple times in one **dn** block, sometimes this entries are
 indexed, this also true for meta attribute data.
 
@@ -88,13 +88,16 @@ attrIndex = (0, 1, 2)
 
 The index itself isn't stored separately but can be used during replacement with the template string '##'.
 
-=== reference attributes
-This is something like an foreign key and is handled by a special ldap plugin (i.e. uniqueMember).
-An **uniqueMember** entry is used to define a reference by naming the distinguish name of the referenced
-leaf which has relationship to this entry.
-Every entry can have multiple **uniqueMember** entries. For only one entry reference a **ldif-table** we
-can construct a 1:n relationship, in the case of multiple reference we have an m:n relationship.
-At the referenced entry can be exists an optional dynamic generated attribute **memberOf**.
+=== Reference Attributes
+A reference attribute is an attribute that contains a distinguish name as value and is used
+to reference another entry in the ldap tree, this is something like a foreign key.
+
+If the attribute name is listed as reference attribute then with a boolean value the *attrName*
+generation can be controlled.
+
+If this is set to *true* the *attrname* is generated from the attribute and the referenced
+ldap table. This is necessary if the node contains more attributes with the same name but
+different referenced ldap tables (e.g. a user can reference organization and roles).
 
 ----
 uniqueMember: cn=aapt_s01,ou=tenants,ou=identity,dc=demandware,dc=com
@@ -103,10 +106,8 @@ attrName = uniqueMember-ou=tenants,ou=identity,dc=demandware,dc=com
 attrData = aapt_s01
 ----
 
-During configuration every reference entry has a boolean value which defines if the entry is a real
-foreign key (i.e. true and the generated `attrName` has the same syntax as in the example above ). If
-this value is set to false all entries are handled independently from his ldap-node, this can be useful
-if there are different ldap reference but we need the data only.
+If the flag is set to *false* the process pick the attribute name and extract the value from
+the reference as in the first case.
 
 ----
 uniqueMember: cn=aapt_s01,ou=tenants,ou=identity,dc=demandware,dc=com
@@ -115,7 +116,17 @@ attrName = uniqueMember
 attrData = aapt_s01
 ----
 
-=== meta attribute (i.e. sunKeyValue)
+If you *not* set this attribute as reference the result is a normal string of the value, this
+is normally not what is wished.
+
+----
+uniqueMember: cn=aapt_s01,ou=tenants,ou=identity,dc=demandware,dc=com
+
+attrName = uniqueMember
+attrData = cn=aapt_s01,ou=tenants,ou=identity,dc=demandware,dc=com
+----
+
+=== Meta Attribute (i.e. sunKeyValue)
 This is a very special entry which contains an (`attrName`,`attrData`) pair as `attrData`,
 where the containing `attrName` can be indexed.
 
@@ -182,7 +193,7 @@ A map of `attrNames`, boolean` which are interpreted as references ([see](#refer
 
 ----
 referenceAttributes:
-    uniqueMember: true
+    memberof: true
     creatorsName: false
 ----
 
@@ -275,7 +286,7 @@ This property is available for base definitions only, not for successor definiti
 
 ==== order (number)
 Control the order of sql statemant generation. At default all statement have order 1 and the generated sql
-statements have **no** defined order. If you need such an order this atribute must be set for each mapping. There
+statements have **not** a defined order. If you need such an order this atribute must be set for each mapping. There
 is one internal rule only used for successors mappings with the default order value 1. In this case the successor
 mapping becomes the order of the parent mapping plus the index, staring at 1, of the successor array.
 
@@ -372,7 +383,7 @@ Short process overview:
 
 = PostgreSQL Hints
 
-== Import the generated data
+== Import the Generated Data
 If you start with a database with empty tables, the following psql command executes the generated statements.
 
 ----
@@ -388,7 +399,7 @@ aggregate function must be used, because SQL can't handle possible result sets f
 But some databases allow this without aggregate function. It's recommended to use this, because the database can identify
 some wrong alternate keys.
 
-== Generate multiple columns from the same date
+== Generate Multiple Columns using the Data Again
 It isn't possible to use the same attribute multiple times in the attribs section, but ldif-converter works with
 strings and you can add multiple columns in one attrib entry.
 ----

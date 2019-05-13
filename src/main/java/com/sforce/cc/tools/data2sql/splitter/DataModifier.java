@@ -17,16 +17,17 @@ class DataModifier
         // helper class
     }
 
+    //
     static List<String> modifyData( @Nullable MappingTable tableMapping, String attr, String data )
     {
-        if ( null == tableMapping || data.isEmpty() )
+        if ( data.isEmpty() )
         {
             return Collections.emptyList();
         }
 
         List<String> dataList = new ArrayList<>();
 
-        if ( tableMapping.getSplitData().containsKey( attr ) )
+        if ( tableMapping != null && tableMapping.getSplitData().containsKey( attr ) )
         {
             String rx = RegexUtil.asRegex( tableMapping.getSplitData().get( attr ) );
             dataList.addAll( Arrays.asList( data.split( rx ) ) );
