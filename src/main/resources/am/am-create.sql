@@ -24,8 +24,8 @@ COMMENT ON COLUMN people.password IS 'Length of a SHA1024 needs 256 4bit hexadec
 
 CREATE TABLE scope
 (
-  id        SERIAL      NOT NULL PRIMARY KEY,
-  shortname VARCHAR(60) NOT NULL UNIQUE
+  id        SERIAL       NOT NULL PRIMARY KEY,
+  shortname VARCHAR(120) NOT NULL UNIQUE
 );
 
 CREATE TABLE response_type
@@ -50,7 +50,7 @@ CREATE TABLE oauth2provider
   default_max_age           INTEGER,
   default_max_age_enabled   BOOLEAN,
   public_key_location       VARCHAR(60),
-  jwt_public_key            VARCHAR(2048),
+  jwt_public_key            VARCHAR(4096),
   password                  VARCHAR(200),
   token_signed_response_alg VARCHAR(60),
   fk_state                  INTEGER REFERENCES state ON UPDATE CASCADE ON DELETE SET NULL,
@@ -83,6 +83,7 @@ CREATE TABLE oauth2provider_version_control
 (
   id                SERIAL NOT NULL PRIMARY KEY,
   fk_oauth2provider INTEGER REFERENCES oauth2provider ON UPDATE CASCADE ON DELETE SET NULL,
+  position          INTEGER,
   path              VARCHAR(1024)
 );
 
@@ -106,9 +107,10 @@ CREATE TABLE organization
 
 CREATE TABLE organization_oauth2provider
 (
-  id                SERIAL NOT NULL PRIMARY KEY,
-  fk_oauth2provider INTEGER REFERENCES oauth2provider ON UPDATE CASCADE ON DELETE SET NULL,
-  fk_organization   INTEGER REFERENCES organization ON UPDATE CASCADE ON DELETE SET NULL
+  id                 SERIAL NOT NULL PRIMARY KEY,
+  fk_oauth2provider  INTEGER REFERENCES oauth2provider ON UPDATE CASCADE ON DELETE SET NULL,
+  fk_organization    INTEGER REFERENCES organization ON UPDATE CASCADE ON DELETE SET NULL,
+  oauth2provider_name VARCHAR(200)
 );
 
 CREATE TABLE pod
@@ -204,7 +206,7 @@ CREATE TABLE assertion
 CREATE TABLE service_provider
 (
   id                  SERIAL NOT NULL PRIMARY KEY,
-  service_provider_cn VARCHAR(60),
+  service_provider_cn VARCHAR(200),
   entity_id           VARCHAR(200),
   spname              VARCHAR(200),
   spurl               VARCHAR(200),

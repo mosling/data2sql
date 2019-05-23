@@ -133,12 +133,13 @@ public class LdifSplitter
                 }
             }
 
-            String retVal = attributeMapping.get( 2 ).replace( "$$", options.quoteData( d ) );
-            if ( index.isPresent() )
+            String retVal = attributeMapping.get( 2 );
+            if ( retVal.contains( "##" ) )
             {
-                retVal = retVal.replace( "##", index.get().toString() );
+                // do number replacement first, because this can't create a new template $$
+                retVal = retVal.replace( "##", index.isPresent() ? index.get().toString() : "0" );
             }
-            return retVal;
+            return retVal.replace( "$$", options.quoteData( d ));
         }
         return "";
     }
